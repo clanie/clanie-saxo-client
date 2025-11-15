@@ -1,0 +1,63 @@
+/**
+ * Copyright (C) 2025, Claus Nielsen, clausn999@gmail.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+package dk.clanie.saxo.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import lombok.Data;
+
+@Data
+public class SaxoQuote {
+
+	/**
+	 * The amount for which the quote is calculated.
+	 */
+	@JsonProperty("Amount")
+	private Integer amount;
+
+	@JsonProperty("Ask")
+	private Double ask;
+
+	@JsonProperty("Bid")
+	private Double bid;
+
+	@JsonProperty("DelayedByMinutes")
+	private Integer delayedByMinutes;
+
+	@JsonProperty("ErrorCode")
+	private String errorCode;
+
+	@JsonProperty("MarketState")
+	private String marketState;
+
+	@JsonProperty("Mid")
+	private Double mid;
+
+	@JsonProperty("PriceSource")
+	private String priceSource; 
+
+	@JsonProperty("PriceSourceType")
+	private String priceSourceType;
+
+	@JsonProperty("PriceTypeAsk")
+	private String priceTypeAsk;
+
+	@JsonProperty("PriceTypeBid")
+	private String priceTypeBid;
+
+}
