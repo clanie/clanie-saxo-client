@@ -17,27 +17,11 @@
  */
 package dk.clanie.saxo;
 
-import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.retry.annotation.EnableRetry;
+import lombok.Value;
 
-/**
- * {@link EnableAutoConfiguration Auto-configuration} for clanie-saxo-client.
- */
-@AutoConfiguration
-@ComponentScan
-@EnableRetry
-@ConditionalOnProperty(prefix = "saxo", name = {
-		"appKey", "appSecret", "appRedirectUrl", "authzEndpoint", "tokenEndpoint", "openApiUrl"})
-public class SaxoAutoConfiguration {
+@Value
+public class SaxoLoginEvent {
 
-//	@Bean
-//    @ConditionalOnMissingBean
-//    EodhdClient eodhdClient(WebClientFactory webClientFactory) {
-//        return new EodhdClient(webClientFactory);
-//    }
-
+	SaxoSession saxoSession;
 
 }

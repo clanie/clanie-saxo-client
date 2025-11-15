@@ -17,27 +17,14 @@
  */
 package dk.clanie.saxo;
 
-import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.retry.annotation.EnableRetry;
+import static java.lang.annotation.ElementType.METHOD;
+
+import java.lang.annotation.Target;
 
 /**
- * {@link EnableAutoConfiguration Auto-configuration} for clanie-saxo-client.
+ * Marks SaxoClient methods SaxoTokenRenewalAspect should ignore.
  */
-@AutoConfiguration
-@ComponentScan
-@EnableRetry
-@ConditionalOnProperty(prefix = "saxo", name = {
-		"appKey", "appSecret", "appRedirectUrl", "authzEndpoint", "tokenEndpoint", "openApiUrl"})
-public class SaxoAutoConfiguration {
-
-//	@Bean
-//    @ConditionalOnMissingBean
-//    EodhdClient eodhdClient(WebClientFactory webClientFactory) {
-//        return new EodhdClient(webClientFactory);
-//    }
-
+@Target(METHOD)
+@interface SaxoSkipTokenRenewal {
 
 }
