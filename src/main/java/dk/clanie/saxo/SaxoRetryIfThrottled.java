@@ -22,18 +22,13 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
+import org.springframework.resilience.annotation.Retryable;
 
 import dk.clanie.web.exception.TooManyRequestsException;
 
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
-@Retryable(
-    retryFor = TooManyRequestsException.class,
-    maxAttempts = 3,
-    backoff = @Backoff(delay = 5000, multiplier = 2, random = true)
-)
+@Retryable(includes = TooManyRequestsException.class, maxAttempts = 3, delay = 5000, multiplier = 2.0, jitter = 500)
 @interface SaxoRetryIfThrottled {
 }

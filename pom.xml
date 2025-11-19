@@ -51,12 +51,7 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.retry</groupId>
-            <artifactId>spring-retry</artifactId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
         </dependency>
 
 
@@ -88,8 +83,7 @@
             <version>5.3.0</version>
         </dependency>
 
-
-        <!-- Miscellaneous -->
+        <!-- Compile time dependencies -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
