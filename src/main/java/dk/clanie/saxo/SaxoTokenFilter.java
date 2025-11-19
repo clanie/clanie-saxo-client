@@ -20,6 +20,7 @@ package dk.clanie.saxo;
 import java.io.IOException;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.stereotype.Component;
 
 import jakarta.servlet.Filter;
@@ -36,6 +37,7 @@ import jakarta.servlet.http.HttpSession;
  * servlet http session.
  */
 @Component
+@ConditionalOnClass(Filter.class)
 public class SaxoTokenFilter implements Filter {
 
 

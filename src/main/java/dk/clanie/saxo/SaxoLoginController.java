@@ -20,6 +20,7 @@ package dk.clanie.saxo;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Controller
 @Slf4j
+@ConditionalOnClass(HttpSession.class)
 public class SaxoLoginController {
 
 	public static final String SAXO_LOGIN_SESSION_ID_ATTRIBUTE = "saxoLoginSessionId";
