@@ -1,0 +1,36 @@
+{"properties": [
+  {
+    "name": "saxo.app-key",
+    "type": "java.lang.String",
+    "description": "Saxo application key"
+  },
+  {
+    "name": "saxo.appSecret",
+    "type": "java.lang.String",
+    "description": "Saxo application secret'"
+  },
+  {
+    "name": "saxo.appRedirectUrl",
+    "type": "Saxo redirect url'"
+  },
+  {
+    "name": "saxo.authzEndpoint",
+    "type": "java.lang.String",
+    "description": "Saxo authorization endpoint"
+  },
+  {
+    "name": "saxo.tokenEndpoint",
+    "type": "java.lang.String",
+    "description": "Saxo token-endpoint"
+  },
+  {
+    "name": "saxo.openApiUrl",
+    "type": "java.lang.String",
+    "description": "Saxo open-api endpoint"
+  },
+  {
+    "name": "saxo.wiretap",
+    "type": "java.lang.Boolean",
+    "description": "Log all data sent to and received from Saxo"
+  }
+]}
