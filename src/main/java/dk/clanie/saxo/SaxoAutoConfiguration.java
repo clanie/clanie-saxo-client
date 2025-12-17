@@ -21,23 +21,17 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.retry.annotation.EnableRetry;
+import org.springframework.resilience.annotation.EnableResilientMethods;
 
 /**
  * {@link EnableAutoConfiguration Auto-configuration} for clanie-saxo-client.
  */
 @AutoConfiguration
 @ComponentScan
-@EnableRetry
+@EnableResilientMethods
 @ConditionalOnProperty(prefix = "saxo", name = {
 		"appKey", "appSecret", "appRedirectUrl", "authzEndpoint", "tokenEndpoint", "openApiUrl"})
 public class SaxoAutoConfiguration {
-
-//	@Bean
-//    @ConditionalOnMissingBean
-//    EodhdClient eodhdClient(WebClientFactory webClientFactory) {
-//        return new EodhdClient(webClientFactory);
-//    }
 
 
 }

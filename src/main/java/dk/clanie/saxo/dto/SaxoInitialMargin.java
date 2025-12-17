@@ -20,12 +20,14 @@ package dk.clanie.saxo.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Builder;
-import lombok.Value;
-import lombok.extern.jackson.Jacksonized;
+import lombok.Data;
 
-@Value
+// TODO change to @Value etc when lombok supports Jackson 3
+// @Value
+// @Builder
+// @Jacksonized
+@Data
 @Builder
-@Jacksonized
 public class SaxoInitialMargin {
 
 
