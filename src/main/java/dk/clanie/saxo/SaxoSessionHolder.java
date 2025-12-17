@@ -21,7 +21,7 @@ import java.time.Instant;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
 import dk.clanie.saxo.dto.SaxoTokens;
