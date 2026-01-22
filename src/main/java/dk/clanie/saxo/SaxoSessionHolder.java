@@ -18,10 +18,11 @@
 package dk.clanie.saxo;
 
 import java.time.Instant;
+import java.util.UUID;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
-import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
 import dk.clanie.saxo.dto.SaxoTokens;
@@ -113,6 +114,16 @@ public class SaxoSessionHolder {
 		saxoSession.invalidate();
 		removeFromThread();
 		applicationEventPublisher.publishEvent(new SaxoLogoutEvent(userDetails));
+	}
+
+
+	public void setTenantId(UUID tenantId) {
+		threadLocalSession.get().setTenantId(tenantId);
+	}
+
+
+	public UUID getTenantId() {
+		return threadLocalSession.get().getTenantId();
 	}
 
 

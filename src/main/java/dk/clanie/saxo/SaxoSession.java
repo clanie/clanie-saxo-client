@@ -18,6 +18,9 @@
 package dk.clanie.saxo;
 
 import java.time.Instant;
+import java.util.UUID;
+
+import org.jspecify.annotations.Nullable;
 
 import dk.clanie.saxo.dto.SaxoTokens;
 import dk.clanie.saxo.dto.SaxoUserDetails;
@@ -35,6 +38,14 @@ public class SaxoSession {
 	private volatile Instant refreshTokenExpiryTime;
 
 	private volatile SaxoUserDetails userDetails;
+	
+	/**
+	 * The tenant ID associated with this session, if any.
+	 * 
+	 * Notice, that it is possible to log in on Saxo without being
+	 * logged in to a specific tenant, in that case this field will be null!
+	 */
+	private volatile @Nullable UUID tenantId;
 
 
 	void registerTokens(SaxoTokens saxoTokens) {
@@ -51,6 +62,7 @@ public class SaxoSession {
 		refreshToken = null;
 		refreshTokenExpiryTime = null;
 		userDetails = null;
+		tenantId = null;
 	}
 
 
