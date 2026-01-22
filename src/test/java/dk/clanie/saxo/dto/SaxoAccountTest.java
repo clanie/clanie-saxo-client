@@ -228,7 +228,7 @@ class SaxoAccountTest {
 		assertThat(account1.getClientId()).isEqualTo("11111111");
 		assertThat(account1.getClientKey()).isEqualTo("aaaaaaa|YmxhLWJsYQ==");
 		assertThat(account1.getCreationDate()).isEqualTo(Instant.parse("2024-01-01T01:01:01.000Z"));
-		assertThat(account1.getCurrency()).isEqualTo("DKK");
+		assertThat(account1.getCurrency()).isEqualTo(SaxoCurrencyCode.DKK);
 		assertThat(account1.getCurrencyDecimals()).isEqualTo(2);
 		assertThat(account1.isDirectMarketAccess()).isFalse();
 		assertThat(account1.getDisplayName()).isEqualTo("Aktiesparekonto");
@@ -268,7 +268,7 @@ class SaxoAccountTest {
 		assertThat(account2.getAccountType()).isEqualTo(SaxoAccountType.Normal);
 		assertThat(account2.getClientKey()).isEqualTo("YmxhLWJsYQ==");
 		assertThat(account2.getCreationDate()).isEqualTo(Instant.parse("2021-01-01T01:01:00.000Z"));
-		assertThat(account2.getCurrency()).isEqualTo("DKK");
+		assertThat(account2.getCurrency()).isEqualTo(SaxoCurrencyCode.DKK);
 		assertThat(account2.getDisplayName()).isNull();
 		assertThat(account2.isCanUseCashPositionsAsMarginCollateral()).isTrue();
 		assertThat(account2.isCfdBorrowingCostsActive()).isTrue();
@@ -284,17 +284,17 @@ class SaxoAccountTest {
 		// Validate third account (EUR)
 		SaxoAccount account3 = accounts[2];
 		assertThat(account3.getAccountId()).isEqualTo("333333INET");
-		assertThat(account3.getCurrency()).isEqualTo("EUR");
+		assertThat(account3.getCurrency()).isEqualTo(SaxoCurrencyCode.EUR);
 		
 		// Validate fourth account (USD)
 		SaxoAccount account4 = accounts[3];
 		assertThat(account4.getAccountId()).isEqualTo("444444INET");
-		assertThat(account4.getCurrency()).isEqualTo("USD");
+		assertThat(account4.getCurrency()).isEqualTo(SaxoCurrencyCode.USD);
 		
 		// Validate fifth account (CAD)
 		SaxoAccount account5 = accounts[4];
 		assertThat(account5.getAccountId()).isEqualTo("555555INET");
-		assertThat(account5.getCurrency()).isEqualTo("CAD");
+		assertThat(account5.getCurrency()).isEqualTo(SaxoCurrencyCode.CAD);
 	}
 
 
