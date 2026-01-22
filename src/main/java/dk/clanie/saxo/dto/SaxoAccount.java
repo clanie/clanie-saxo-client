@@ -66,7 +66,7 @@ public class SaxoAccount extends SaxoDto {
 	public Instant creationDate;
 	
 	@JsonProperty("Currency")
-	public String currency;
+	public SaxoCurrencyCode currency;
 	
 	@JsonProperty("CurrencyDecimals")
 	public int currencyDecimals;
