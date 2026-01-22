@@ -42,10 +42,10 @@ public class SaxoAccount extends SaxoDto {
 	public String accountKey;
 
 	@JsonProperty("AccountSubType")
-	public String accountSubType;
+	public SaxoAccountSubType accountSubType;
 
 	@JsonProperty("AccountType")
-	public String accountType;
+	public SaxoAccountType accountType;
 
 	@JsonProperty("AccountValueProtectionLimit")
 	public double accountValueProtectionLimit;
