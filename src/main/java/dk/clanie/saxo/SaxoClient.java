@@ -29,6 +29,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.ClientRequest;
@@ -195,7 +196,7 @@ public class SaxoClient {
 
 
 	@SaxoRetryIfThrottled
-	public List<SaxoInstrument> instruments(SaxoInstrumentSearchRequest req) {
+	public @NonNull List<SaxoInstrument> instruments(SaxoInstrumentSearchRequest req) {
 		SaxoListResponse<SaxoInstrument> resp = wc.get()
 				.uri("/ref/v1/instruments/", ub -> {
 					ub = ub.queryParam("$top", 200).queryParam("$skip", 0).queryParam("includeNonTradable", true);
