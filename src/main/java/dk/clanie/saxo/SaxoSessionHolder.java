@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -117,13 +118,23 @@ public class SaxoSessionHolder {
 	}
 
 
-	public void setTenantId(UUID tenantId) {
-		threadLocalSession.get().setTenantId(tenantId);
+	public void setTenantAndUserId(UUID tenantId, UUID userId) {
+		SaxoSession saxoSession = threadLocalSession.get();
+		saxoSession.setTenantId(tenantId);
+		saxoSession.setUserId(userId);
 	}
 
 
-	public UUID getTenantId() {
+	/**
+	 * Returns the tenant ID associated with the current session, or null if not set.
+	 */
+	public @Nullable UUID getTenantId() {
 		return threadLocalSession.get().getTenantId();
+	}
+
+
+	public UUID getUserId() {
+		return threadLocalSession.get().getUserId();
 	}
 
 

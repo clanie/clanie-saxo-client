@@ -46,6 +46,14 @@ public class SaxoSession {
 	 * logged in to a specific tenant, in that case this field will be null!
 	 */
 	private volatile @Nullable UUID tenantId;
+	
+	/**
+	 * The Portfolio user ID associated with this session, if any.
+	 * 
+	 * This is used to track which Portfolio user owns accounts created
+	 * during Saxo synchronization.
+	 */
+	private volatile @Nullable UUID userId;
 
 
 	void registerTokens(SaxoTokens saxoTokens) {
@@ -63,6 +71,7 @@ public class SaxoSession {
 		refreshTokenExpiryTime = null;
 		userDetails = null;
 		tenantId = null;
+		userId = null;
 	}
 
 
