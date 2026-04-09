@@ -38,10 +38,10 @@ public class SaxoTokenRenewalAspect {
 	private SaxoLoginClient saxoLoginClient;
 
 
-	@Pointcut("execution(* dk.clanie.integration.saxo.SaxoClient.*(..))")
+	@Pointcut("execution(* dk.clanie.saxo.SaxoClient.*(..))")
 	public void allSaxoClientMethods() {}
 
-	@Before("allSaxoClientMethods() && !@annotation(dk.clanie.integration.saxo.NoTokenRefreshBefore)")
+	@Before("allSaxoClientMethods() && !@annotation(dk.clanie.saxo.SaxoSkipTokenRenewal)")
 	public void refreshTokenIfRequired() {
 		if (saxoSessionHolder.accessTokenHasExpired()) {
 			log.debug("Saxo access token has expired. Refreshing.");
