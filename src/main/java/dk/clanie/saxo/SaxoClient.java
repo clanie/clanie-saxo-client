@@ -285,7 +285,7 @@ public class SaxoClient {
 	 * @return SaxoGetChartDataResponse
 	 */
 	@SaxoRetryIfThrottled
-	public SaxoGetChartDataResponse getChartData(SaxoAssetType assetType, long uic, int horizon,
+	public @NonNull SaxoGetChartDataResponse getChartData(SaxoAssetType assetType, long uic, int horizon,
 			SaxoChartRequestMode mode, Instant time, int count) {
 		SaxoGetChartDataResponse resp = wc.get().uri("/chart/v3/charts/", ub -> ub
 				.queryParam("AssetType", assetType)
