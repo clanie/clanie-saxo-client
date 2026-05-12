@@ -47,13 +47,13 @@ import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
-public class SaxoXlsxUtils {
+class SaxoXlsxUtils {
 
 	private static final DateTimeFormatter DD_MM_YYY_FORMATTER =  DateTimeFormatter.ofPattern("dd-MM-yyyy");
 	private static final List<String> MONTH_NAMES = List.of("jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec");
 
 
-	public List<SaxoAccountStatementRow> parseAccountStatement(byte[] data) {
+	List<SaxoAccountStatementRow> parseAccountStatement(byte[] data) {
 		try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
 				Workbook workbook = new XSSFWorkbook(inputStream)) {
 
@@ -98,7 +98,7 @@ public class SaxoXlsxUtils {
 	}
 
 
-	public List<SaxoTradesExecutedRow> parseTradesExecuted(byte[] data) {
+	List<SaxoTradesExecutedRow> parseTradesExecuted(byte[] data) {
 		try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
 				Workbook workbook = new XSSFWorkbook(inputStream)) {
 
