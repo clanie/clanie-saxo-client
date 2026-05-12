@@ -53,6 +53,7 @@ import dk.clanie.saxo.dto.SaxoListResponse;
 import dk.clanie.saxo.dto.SaxoTradesExecutedResponse;
 import dk.clanie.saxo.dto.SaxoTradesExecutedRow;
 import dk.clanie.saxo.dto.SaxoUserDetails;
+import dk.clanie.saxo.dto.SaxoXlsxResponse;
 import dk.clanie.web.WebClientFactory;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -157,8 +158,24 @@ public class SaxoClient {
 
 
 	@SaxoRetryIfThrottled
+	public SaxoXlsxResponse accountStatementUnparsed(String clientKey, String accountKey, @Nullable LocalDate startDate) {
+		return new SaxoXlsxResponse("AccountStatement.xlsx", fetchAccountStatementXlsx(clientKey, accountKey, startDate));
+	}
+
+	@SaxoRetryIfThrottled
 	public SaxoAccountStatementResponse accountStatement(String clientKey, String accountKey, @Nullable LocalDate startDate) {
-		byte[] resp = wc.get()
+		byte[] resp = fetchAccountStatementXlsx(clientKey, accountKey, startDate);
+		return new SaxoAccountStatementResponse("AccountStatement.xlsx", resp, saxoXlsxUtils.parseAccountStatement(resp));
+		// Endpoint supports more parameters:
+		// ?AccountGroupKey={AccountGroupKey}&AccountKey={AccountKey}&AccountStatementSortByRule={AccountStatementSortByRule}&FromDate={FromDate}&ToDate={ToDate}
+	}
+
+	public List<SaxoAccountStatementRow> parseAccountStatement(byte[] xlsxData) {
+		return saxoXlsxUtils.parseAccountStatement(xlsxData);
+	}
+
+	private byte[] fetchAccountStatementXlsx(String clientKey, String accountKey, @Nullable LocalDate startDate) {
+		return wc.get()
 				.uri("/cr/v1/reports/AccountStatement/{ClientKey}", ub -> ub
 						.queryParam("AccountKey", accountKey)
 						.queryParam("FromDate", opt(startDate).map(LocalDate::toString).orElse("2000-01-01"))
@@ -168,16 +185,28 @@ public class SaxoClient {
 				.retrieve()
 				.bodyToMono(byte[].class)
 				.block();
-		List<SaxoAccountStatementRow> accountStatementRows = saxoXlsxUtils.parseAccountStatement(resp);
-		return new SaxoAccountStatementResponse("AccountStatement.xlsx", resp, accountStatementRows);
-		// Endpoint supports more parameters:
-		// ?AccountGroupKey={AccountGroupKey}&AccountKey={AccountKey}&AccountStatementSortByRule={AccountStatementSortByRule}&FromDate={FromDate}&ToDate={ToDate}
 	}
 
 
 	@SaxoRetryIfThrottled
+	public SaxoXlsxResponse tradesExecutedUnparsed(String clientKey, String accountKey, @Nullable LocalDate startDate) {
+		return new SaxoXlsxResponse("TradesExecuted.xlsx", fetchTradesExecutedXlsx(clientKey, accountKey, startDate));
+	}
+
+	@SaxoRetryIfThrottled
 	public SaxoTradesExecutedResponse tradesExecuted(String clientKey, String accountKey, @Nullable LocalDate startDate) {
-		byte[] resp = wc.get()
+		byte[] resp = fetchTradesExecutedXlsx(clientKey, accountKey, startDate);
+		return new SaxoTradesExecutedResponse("TradesExecuted.xlsx", resp, saxoXlsxUtils.parseTradesExecuted(resp), saxoXlsxUtils.parseBookedTradeAmounts(resp));
+		// Endpoint supports more parameters:
+		// /cr/v1/reports/TradesExecuted/{ClientKey}?AccountGroupKey={AccountGroupKey}&AccountKey={AccountKey}&FromDate={FromDate}&ToDate={ToDate}
+	}
+
+	public SaxoTradesExecutedResponse parseTradesExecutedXlsx(byte[] xlsxData) {
+		return new SaxoTradesExecutedResponse("TradesExecuted.xlsx", xlsxData, saxoXlsxUtils.parseTradesExecuted(xlsxData), saxoXlsxUtils.parseBookedTradeAmounts(xlsxData));
+	}
+
+	private byte[] fetchTradesExecutedXlsx(String clientKey, String accountKey, @Nullable LocalDate startDate) {
+		return wc.get()
 				.uri("/cr/v1/reports/TradesExecuted/{ClientKey}", ub -> ub
 						.queryParam("AccountKey", accountKey)
 						.queryParam("FromDate", opt(startDate).map(LocalDate::toString).orElse("2000-01-01"))
@@ -187,11 +216,6 @@ public class SaxoClient {
 				.retrieve()
 				.bodyToMono(byte[].class)
 				.block();
-		List<SaxoTradesExecutedRow> tradesExecuted = saxoXlsxUtils.parseTradesExecuted(resp);
-		List<SaxoBookedTradeAmountsRow> bookedTradeAmounts = saxoXlsxUtils.parseBookedTradeAmounts(resp);
-		return new SaxoTradesExecutedResponse("TradesExecuted.xlsx", resp, tradesExecuted, bookedTradeAmounts);
-		// Endpoint supports more paparseAccountStatement(resp)rameters:
-		// /cr/v1/reports/TradesExecuted/{ClientKey}?AccountGroupKey={AccountGroupKey}&AccountKey={AccountKey}&FromDate={FromDate}&ToDate={ToDate}	
 	}
 
 
