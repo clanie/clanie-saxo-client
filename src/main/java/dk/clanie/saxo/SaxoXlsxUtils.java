@@ -275,15 +275,19 @@ class SaxoXlsxUtils {
 		Cell cell = row.getCell(cellIndex);
 		if (cell == null) return null;
 		CellType cellType = cell.getCellType();
+		if (cellType == CellType.BLANK) return null;
 		if (clazz == Double.class) {
 			if (cellType == NUMERIC) return clazz.cast(cell.getNumericCellValue());
+			if (cellType == STRING && cell.getStringCellValue().isBlank()) return null;
 		} else if (clazz == Integer.class) {
 			if (cellType == NUMERIC) return clazz.cast((int)cell.getNumericCellValue());
+			if (cellType == STRING && cell.getStringCellValue().isBlank()) return null;
 		} else if (clazz == LocalDate.class) {
 			if (cellType == STRING) return clazz.cast(localDateOfString(cell));
 			else if (cellType == NUMERIC) return clazz.cast(localDateOfNumeric(cell));
 		} else if (clazz == Long.class) {
 			if (cellType == NUMERIC) return clazz.cast((long)cell.getNumericCellValue());
+			if (cellType == STRING && cell.getStringCellValue().isBlank()) return null;
 		} else if (clazz == String.class) {
 			if (cellType == STRING) return clazz.cast(cell.getStringCellValue());
 		} else if (clazz == SaxoCurrencyCode.class) {
