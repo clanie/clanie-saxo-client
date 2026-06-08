@@ -19,6 +19,7 @@ package dk.clanie.saxo.dto;
 
 import java.time.Instant;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Data;
@@ -26,6 +27,7 @@ import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SaxoInfoPriceResponse extends SaxoDto {
 
 	@JsonProperty("AssetType")
@@ -40,7 +42,28 @@ public class SaxoInfoPriceResponse extends SaxoDto {
 	@JsonProperty("Quote")
 	private SaxoQuote quote;
 
+	@JsonProperty("PriceInfoDetails")
+	private SaxoPriceInfoDetails priceInfoDetails;
+
 	@JsonProperty("Uic")
 	private Long uic;
+
+
+	/**
+	 * Returns the best available price from this response, in priority order:
+	 * Quote.Mid → PriceInfoDetails.LastTraded → PriceInfoDetails.LastClose.
+	 * Returns {@code null} when no usable price is available.
+	 */
+	public SaxoBestPrice getBestPrice() {
+		if (quote != null && isUsablePrice(quote.getMid())) return new SaxoBestPrice(quote.getMid(), SaxoPriceType.MID);
+		if (priceInfoDetails != null && isUsablePrice(priceInfoDetails.getLastTraded())) return new SaxoBestPrice(priceInfoDetails.getLastTraded(), SaxoPriceType.LAST_TRADED);
+		if (priceInfoDetails != null && isUsablePrice(priceInfoDetails.getLastClose())) return new SaxoBestPrice(priceInfoDetails.getLastClose(), SaxoPriceType.LAST_CLOSE);
+		return null;
+	}
+
+
+	private boolean isUsablePrice(Double price) {
+		return price != null && price > 0d;
+	}
 
 }

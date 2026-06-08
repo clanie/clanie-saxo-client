@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025, Claus Nielsen, clausn999@gmail.com
+ * Copyright (C) 2026, Claus Nielsen, clausn999@gmail.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,49 +17,19 @@
  */
 package dk.clanie.saxo.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class SaxoQuote {
+public class SaxoPriceInfoDetails {
 
-	/**
-	 * The amount for which the quote is calculated.
-	 */
-	@JsonProperty("Amount")
-	private Integer amount;
+	@JsonProperty("LastClose")
+	private Double lastClose;
 
-	@JsonProperty("Ask")
-	private Double ask;
-
-	@JsonProperty("Bid")
-	private Double bid;
-
-	@JsonProperty("DelayedByMinutes")
-	private Integer delayedByMinutes;
-
-	@JsonProperty("ErrorCode")
-	private String errorCode;
-
-	@JsonProperty("MarketState")
-	private String marketState;
-
-	@JsonProperty("Mid")
-	private Double mid;
-
-	@JsonProperty("PriceSource")
-	private String priceSource; 
-
-	@JsonProperty("PriceSourceType")
-	private String priceSourceType;
-
-	@JsonProperty("PriceTypeAsk")
-	private String priceTypeAsk;
-
-	@JsonProperty("PriceTypeBid")
-	private String priceTypeBid;
+	@JsonProperty("LastTraded")
+	private Double lastTraded;
 
 }

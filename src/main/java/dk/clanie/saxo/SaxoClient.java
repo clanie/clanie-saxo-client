@@ -26,11 +26,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
@@ -41,7 +41,6 @@ import dk.clanie.saxo.dto.SaxoAccountBalanceResponse;
 import dk.clanie.saxo.dto.SaxoAccountStatementResponse;
 import dk.clanie.saxo.dto.SaxoAccountStatementRow;
 import dk.clanie.saxo.dto.SaxoAssetType;
-import dk.clanie.saxo.dto.SaxoBookedTradeAmountsRow;
 import dk.clanie.saxo.dto.SaxoChartRequestMode;
 import dk.clanie.saxo.dto.SaxoClientDetails;
 import dk.clanie.saxo.dto.SaxoGetChartDataResponse;
@@ -51,7 +50,6 @@ import dk.clanie.saxo.dto.SaxoInstrumentDetails;
 import dk.clanie.saxo.dto.SaxoInstrumentSearchRequest;
 import dk.clanie.saxo.dto.SaxoListResponse;
 import dk.clanie.saxo.dto.SaxoTradesExecutedResponse;
-import dk.clanie.saxo.dto.SaxoTradesExecutedRow;
 import dk.clanie.saxo.dto.SaxoUserDetails;
 import dk.clanie.saxo.dto.SaxoXlsxResponse;
 import dk.clanie.web.WebClientFactory;
@@ -254,7 +252,7 @@ public class SaxoClient {
 		SaxoInfoPriceResponse resp = wc.get().uri("/trade/v1/infoprices/", ub -> ub
 				.queryParam("AssetType", assetType)
 				.queryParam("Uic", uic)
-				// .queryParam("FieldGroups", "PriceInfo", "PriceInfoDetails", "Quote")
+				.queryParam("FieldGroups", "Quote,PriceInfoDetails")
 				.build())
 				.retrieve()
 				.bodyToMono(SaxoInfoPriceResponse.class)
@@ -268,7 +266,7 @@ public class SaxoClient {
 		SaxoListResponse<SaxoInfoPriceResponse> resp = wc.get().uri("/trade/v1/infoprices/list/", ub -> ub
 				.queryParam("AssetType", assetType)
 				.queryParam("Uics", csv(uics))
-				// .queryParam("FieldGroups", "PriceInfo", "PriceInfoDetails", "Quote")
+				.queryParam("FieldGroups", "Quote,PriceInfoDetails")
 				.build())
 				.retrieve()
 				.bodyToMono(new ParameterizedTypeReference<SaxoListResponse<SaxoInfoPriceResponse>>() {})
