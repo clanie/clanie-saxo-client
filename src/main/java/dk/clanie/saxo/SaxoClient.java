@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025, Claus Nielsen, clausn999@gmail.com
+ * Copyright (C) 2025-2026, Claus Nielsen, clausn999@gmail.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@ public class SaxoClient {
 	private final SaxoSessionHolder saxoSessionHolder;
 	private final SaxoXlsxUtils saxoXlsxUtils;
 	private final WebClientFactory webClientFactory;
+	private final SaxoRateLimiter rateLimiter;
 
 
 	@Value("${saxo.openApiUrl}")
@@ -80,6 +81,7 @@ public class SaxoClient {
 	public void init() {
 		wc = webClientFactory.newWebClient(openApiUrl, builder -> {
 			builder.filter(authorizationFilter());
+			builder.filter(rateLimiter.trackingFilter());
 		}, wiretap);
 	}
 
