@@ -128,7 +128,7 @@ public class SaxoRateLimiter {
      */
     static Optional<RateLimitState> mostConstrainedPerMinute(HttpHeaders headers) {
         RateLimitState constraining = null;
-        for (String name : headers.keySet()) {
+        for (String name : headers.headerNames()) {
             String lower = name.toLowerCase();
             if (!lower.startsWith("x-ratelimit-") || !lower.endsWith("minute-remaining")) continue;
             String dimension = name.substring("X-RateLimit-".length(), name.length() - "-Remaining".length());
@@ -157,7 +157,7 @@ public class SaxoRateLimiter {
      */
     static Set<String> unrecognizedRateLimitDimensions(HttpHeaders headers) {
         Set<String> unrecognized = new HashSet<>();
-        for (String name : headers.keySet()) {
+        for (String name : headers.headerNames()) {
             String lower = name.toLowerCase();
             if (!lower.startsWith("x-ratelimit-") || !lower.endsWith("-remaining")) continue;
             String dimension = name.substring("X-RateLimit-".length(), name.length() - "-Remaining".length());
