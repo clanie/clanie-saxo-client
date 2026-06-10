@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpHeaders;
@@ -53,6 +54,13 @@ public class SaxoRateLimiter {
 
     /** Key: "userId:serviceGroup" */
     private final ConcurrentHashMap<String, RateLimitState> states = new ConcurrentHashMap<>();
+
+    /**
+     * Earliest instant at which the next request for a given service group may
+     * be sent, used by {@link #throttle} to pace outbound requests. Key:
+     * "userId:serviceGroup".
+     */
+    private final ConcurrentHashMap<String, AtomicReference<Instant>> nextSlots = new ConcurrentHashMap<>();
 
 
     /**
@@ -112,10 +120,7 @@ public class SaxoRateLimiter {
      * leave headroom for higher-priority requests in the same service group.
      */
     public void waitIfNeeded(String serviceGroup, int minRemaining) throws InterruptedException {
-        String userId = Optional.ofNullable(sessionHolder.getSession())
-                .map(SaxoSession::getUserDetails)
-                .map(SaxoUserDetails::getUserId)
-                .orElse(null);
+        String userId = currentUserId();
         if (userId == null) return;
         RateLimitState state = states.get(userId + ":" + serviceGroup);
         if (state == null || state.remaining() > minRemaining) return;
@@ -126,10 +131,57 @@ public class SaxoRateLimiter {
     }
 
 
+    /**
+     * Proactively paces requests for {@code serviceGroup} so that successive
+     * calls are spaced at least {@code minInterval} apart. This smooths out the
+     * request bursts (e.g. paginating an instrument's full chart history) that
+     * would otherwise exhaust Saxo's per-minute limit in a few seconds.
+     *
+     * <p>This complements {@link #waitIfNeeded}: pacing keeps us under the limit
+     * up front, whereas {@code waitIfNeeded} only reacts <em>after</em> Saxo
+     * reports the quota is nearly gone — and only when it chooses to emit the
+     * {@code X-RateLimit-*} headers, which is too late to prevent the first
+     * burst from being rejected.
+     *
+     * <p>Slots are reserved lock-free via a compare-and-set on a per-group
+     * "next allowed" instant, so concurrent callers on the same service group
+     * are serialised onto an evenly-spaced schedule rather than all racing
+     * through at once.
+     *
+     * @param serviceGroup the Saxo service group to pace (e.g. {@code "chart"})
+     * @param minInterval  minimum spacing between requests; non-positive or
+     *                     {@code null} disables pacing
+     */
+    public void throttle(String serviceGroup, Duration minInterval) throws InterruptedException {
+        if (minInterval == null || !minInterval.isPositive()) return;
+        String userId = currentUserId();
+        if (userId == null) return;
+        AtomicReference<Instant> slot = nextSlots.computeIfAbsent(userId + ":" + serviceGroup, _ -> new AtomicReference<>(Instant.EPOCH));
+        Instant scheduledAt;
+        while (true) {
+            Instant now = Instant.now();
+            Instant earliest = slot.get();
+            scheduledAt = earliest.isAfter(now) ? earliest : now;
+            if (slot.compareAndSet(earliest, scheduledAt.plus(minInterval))) break;
+        }
+        Duration wait = Duration.between(Instant.now(), scheduledAt);
+        if (wait.isPositive()) Thread.sleep(wait);
+    }
+
+
+    private String currentUserId() {
+        return Optional.ofNullable(sessionHolder.getSession())
+                .map(SaxoSession::getUserDetails)
+                .map(SaxoUserDetails::getUserId)
+                .orElse(null);
+    }
+
+
     @EventListener
     void onLogout(SaxoLogoutEvent event) {
         String userId = event.getUserDetails().getUserId();
         states.keySet().removeIf(key -> key.startsWith(userId + ":"));
+        nextSlots.keySet().removeIf(key -> key.startsWith(userId + ":"));
     }
 
 
