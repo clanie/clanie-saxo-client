@@ -22,13 +22,96 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 
+import dk.clanie.saxo.SaxoRateLimiter.RateLimitState;
 import dk.clanie.saxo.dto.SaxoUserDetails;
 
 class SaxoRateLimiterTest {
+
+
+	@Test
+	void parses_the_per_minute_dimension_and_ignores_the_daily_appday_budget() {
+		// Header names taken verbatim from a real Saxo chart-sync response.
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("X-RateLimit-AppDay-Limit", "10000000");
+		headers.add("X-RateLimit-AppDay-Remaining", "9998941");
+		headers.add("X-RateLimit-AppDay-Reset", "19243");
+		headers.add("X-RateLimit-ChartMinute-Limit", "120");
+		headers.add("X-RateLimit-ChartMinute-Remaining", "7");
+		headers.add("X-RateLimit-ChartMinute-Reset", "41");
+
+		Optional<RateLimitState> state = SaxoRateLimiter.mostConstrainedPerMinute(headers);
+
+		// The per-minute dimension wins, not AppDay's millions-remaining budget.
+		assertThat(state).isPresent();
+		assertThat(state.get().remaining()).isEqualTo(7);
+	}
+
+
+	@Test
+	void returns_empty_when_only_the_daily_budget_header_is_present() {
+		// Saxo omits per-minute headers when the per-minute quota is ample.
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("X-RateLimit-AppDay-Remaining", "9998941");
+		headers.add("X-RateLimit-AppDay-Reset", "19243");
+
+		assertThat(SaxoRateLimiter.mostConstrainedPerMinute(headers)).isEmpty();
+	}
+
+
+	@Test
+	void returns_empty_when_there_are_no_rate_limit_headers() {
+		assertThat(SaxoRateLimiter.mostConstrainedPerMinute(new HttpHeaders())).isEmpty();
+	}
+
+
+	@Test
+	void picks_the_most_constrained_of_several_per_minute_dimensions() {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("X-RateLimit-TradeInfoPricesMinute-Remaining", "212");
+		headers.add("X-RateLimit-TradeInfoPricesMinute-Reset", "53");
+		headers.add("X-RateLimit-ChartMinute-Remaining", "3");
+		headers.add("X-RateLimit-ChartMinute-Reset", "12");
+
+		Optional<RateLimitState> state = SaxoRateLimiter.mostConstrainedPerMinute(headers);
+
+		assertThat(state).isPresent();
+		assertThat(state.get().remaining()).isEqualTo(3);
+	}
+
+
+	@Test
+	void does_not_flag_the_known_minute_and_day_dimensions() {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("X-RateLimit-AppDay-Remaining", "9998941");
+		headers.add("X-RateLimit-AppDay-Reset", "19243");
+		headers.add("X-RateLimit-TradeInfoPricesMinute-Remaining", "212");
+		headers.add("X-RateLimit-TradeInfoPricesMinute-Reset", "53");
+		headers.add("X-RateLimit-ChartMinute-Remaining", "7");
+		headers.add("X-RateLimit-ChartMinute-Reset", "41");
+
+		assertThat(SaxoRateLimiter.unrecognizedRateLimitDimensions(headers)).isEmpty();
+	}
+
+
+	@Test
+	void flags_a_rate_limit_dimension_that_no_longer_matches_our_assumptions() {
+		// If Saxo renamed its per-minute chart limit to a window we don't track,
+		// pacing silently stops working — the canary must surface that dimension.
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("X-RateLimit-AppDay-Remaining", "9998941");
+		headers.add("X-RateLimit-AppDay-Reset", "19243");
+		headers.add("X-RateLimit-ChartSecond-Remaining", "2");
+		headers.add("X-RateLimit-ChartSecond-Reset", "1");
+
+		assertThat(SaxoRateLimiter.unrecognizedRateLimitDimensions(headers))
+				.containsExactly("ChartSecond");
+	}
 
 
 	private static SaxoRateLimiter limiterForUser(SaxoSessionHolder holder, String userId) {

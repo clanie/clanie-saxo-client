@@ -19,7 +19,9 @@ package dk.clanie.saxo;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -36,12 +38,16 @@ import lombok.extern.slf4j.Slf4j;
  * Tracks Saxo API rate-limit state from response headers and allows callers to
  * voluntarily pause before low-priority requests.
  *
- * <p>Saxo only emits {@code X-RateLimit-*} headers when a limit is close to
- * being reached (per their documentation), so absent headers mean "plenty of
- * quota left" — not a bug.
+ * <p>Saxo reports each rate-limit "dimension" in its own header set, named
+ * {@code X-RateLimit-<Dimension>-Limit/-Remaining/-Reset} — e.g.
+ * {@code X-RateLimit-ChartMinute-*} for chart requests, alongside the app-wide
+ * {@code X-RateLimit-AppDay-*} budget. When a service group has ample quota the
+ * per-minute headers may be absent, so missing headers mean "plenty left" — not
+ * a bug.
  *
- * <p>Limits are 120 requests/minute per session per service group. Service
- * groups are independent: chart quota and trade (price) quota are separate.
+ * <p>Per-minute dimensions are independent per service group: chart quota and
+ * trade (price) quota are separate. We track the most constrained per-minute
+ * dimension and ignore the large daily {@code AppDay} budget.
  */
 @Service
 @Slf4j
@@ -50,7 +56,7 @@ public class SaxoRateLimiter {
 
     private final SaxoSessionHolder sessionHolder;
 
-    private record RateLimitState(int remaining, Instant resetAt) {}
+    record RateLimitState(int remaining, Instant resetAt) {}
 
     /** Key: "userId:serviceGroup" */
     private final ConcurrentHashMap<String, RateLimitState> states = new ConcurrentHashMap<>();
@@ -61,6 +67,9 @@ public class SaxoRateLimiter {
      * "userId:serviceGroup".
      */
     private final ConcurrentHashMap<String, AtomicReference<Instant>> nextSlots = new ConcurrentHashMap<>();
+
+    /** Dimensions already warned about, so the header-drift canary logs at most once each. */
+    private final Set<String> warnedDimensions = ConcurrentHashMap.newKeySet();
 
 
     /**
@@ -91,24 +100,72 @@ public class SaxoRateLimiter {
     }
 
     private void updateState(String key, HttpHeaders headers) {
-        if (log.isDebugEnabled()) {
-            headers.forEach((name, values) -> {
-                if (name.toLowerCase().startsWith("x-ratelimit-")) {
-                    log.debug("Saxo rate limit header [{}]: {}", name, String.join(", ", values));
+        mostConstrainedPerMinute(headers).ifPresent(state -> {
+            states.put(key, state);
+            log.debug("Saxo rate limit [{}]: {} remaining, resets {}.", key, state.remaining(), state.resetAt());
+        });
+        // Canary: if Saxo reports a rate-limit dimension we neither pace against
+        // (a per-minute "*Minute" dimension) nor knowingly ignore (a coarse
+        // day/hour budget like AppDay), our header-name assumptions have likely
+        // drifted and the pacing for that group has silently stopped working.
+        for (String dimension : unrecognizedRateLimitDimensions(headers)) {
+            if (warnedDimensions.add(dimension)) {
+                log.warn("Unrecognized Saxo rate-limit dimension '{}' (service group '{}'). SaxoRateLimiter only paces against per-minute '*Minute' dimensions; if Saxo renamed its per-minute limit headers this class must be updated, otherwise chart rate limiting is no longer effective.", dimension, key);
+            }
+        }
+    }
+
+    /**
+     * Returns the most constrained per-minute rate-limit dimension present in
+     * {@code headers} (the one with the fewest requests remaining), or empty
+     * when Saxo omitted the per-minute headers because there is ample quota.
+     *
+     * <p>Saxo names rate-limit headers per dimension, e.g.
+     * {@code X-RateLimit-ChartMinute-Remaining} / {@code -Reset}. We only
+     * consider the {@code *Minute} dimensions — the large daily
+     * {@code X-RateLimit-AppDay-*} budget is deliberately ignored, since its
+     * multi-hour reset window must never drive a per-cycle pause.
+     */
+    static Optional<RateLimitState> mostConstrainedPerMinute(HttpHeaders headers) {
+        RateLimitState constraining = null;
+        for (String name : headers.keySet()) {
+            String lower = name.toLowerCase();
+            if (!lower.startsWith("x-ratelimit-") || !lower.endsWith("minute-remaining")) continue;
+            String dimension = name.substring("X-RateLimit-".length(), name.length() - "-Remaining".length());
+            String remaining = headers.getFirst(name);
+            String reset = headers.getFirst("X-RateLimit-" + dimension + "-Reset");
+            if (remaining == null || reset == null) continue;
+            try {
+                int remainingCount = Integer.parseInt(remaining.trim());
+                int resetSeconds = Integer.parseInt(reset.trim());
+                if (constraining == null || remainingCount < constraining.remaining()) {
+                    constraining = new RateLimitState(remainingCount, Instant.now().plusSeconds(resetSeconds));
                 }
-            });
+            } catch (NumberFormatException e) {
+                log.warn("Unparseable Saxo rate-limit headers for dimension {}: remaining='{}', reset='{}'.", dimension, remaining, reset);
+            }
         }
-        String remaining = headers.getFirst("X-RateLimit-Session-Remaining");
-        String reset = headers.getFirst("X-RateLimit-Session-Reset");
-        if (remaining == null || reset == null) return;
-        try {
-            int remainingCount = Integer.parseInt(remaining.trim());
-            int resetSeconds = Integer.parseInt(reset.trim());
-            states.put(key, new RateLimitState(remainingCount, Instant.now().plusSeconds(resetSeconds)));
-            log.debug("Saxo rate limit [{}]: {} remaining, resets in {}s.", key, remainingCount, resetSeconds);
-        } catch (NumberFormatException e) {
-            log.warn("Unparseable Saxo rate-limit headers: X-RateLimit-Session-Remaining='{}', X-RateLimit-Session-Reset='{}'.", remaining, reset);
+        return Optional.ofNullable(constraining);
+    }
+
+    /**
+     * Returns the rate-limit dimensions Saxo reported that this class does not
+     * understand: neither a per-minute {@code *Minute} dimension (which we pace
+     * against) nor a coarse day/hour budget such as {@code AppDay} (which we
+     * deliberately ignore). A non-empty result is a red flag that Saxo's header
+     * naming has changed and the per-minute tracking has silently gone stale.
+     */
+    static Set<String> unrecognizedRateLimitDimensions(HttpHeaders headers) {
+        Set<String> unrecognized = new HashSet<>();
+        for (String name : headers.keySet()) {
+            String lower = name.toLowerCase();
+            if (!lower.startsWith("x-ratelimit-") || !lower.endsWith("-remaining")) continue;
+            String dimension = name.substring("X-RateLimit-".length(), name.length() - "-Remaining".length());
+            String dimensionLower = dimension.toLowerCase();
+            if (dimensionLower.endsWith("minute") || dimensionLower.endsWith("hour") || dimensionLower.endsWith("day")) continue;
+            unrecognized.add(dimension);
         }
+        return unrecognized;
     }
 
 
