@@ -36,6 +36,7 @@ public class SaxoSession {
 	private volatile Instant accessTokenExpiryTime;
 	private volatile String refreshToken;
 	private volatile Instant refreshTokenExpiryTime;
+	private volatile @Nullable String redirectUri;
 
 	private volatile SaxoUserDetails userDetails;
 	
@@ -56,11 +57,12 @@ public class SaxoSession {
 	private volatile @Nullable UUID userId;
 
 
-	void registerTokens(SaxoTokens saxoTokens) {
+	void registerTokens(SaxoTokens saxoTokens, String redirectUri) {
 		accessToken = saxoTokens.getAccessToken();
 		accessTokenExpiryTime = Instant.now().plusSeconds(saxoTokens.getExpiresIn());
 		refreshToken = saxoTokens.getRefreshToken();
 		refreshTokenExpiryTime = Instant.now().plusSeconds(saxoTokens.getRefreshTokenExpiresIn());
+		this.redirectUri = redirectUri;
 	}
 
 
@@ -69,6 +71,7 @@ public class SaxoSession {
 		accessTokenExpiryTime = null;
 		refreshToken = null;
 		refreshTokenExpiryTime = null;
+		redirectUri = null;
 		userDetails = null;
 		tenantId = null;
 		userId = null;

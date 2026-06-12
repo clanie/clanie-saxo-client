@@ -47,9 +47,6 @@ public class SaxoLoginClient {
 	@Value("${saxo.appSecret}")
 	private String appSecret;
 
-	@Value("${saxo.appRedirectUrl}")
-	private String appRedirectUrl;
-
 	@Value("${saxo.authzEndpoint}")
 	private String authzEndpoint;
 
@@ -68,14 +65,8 @@ public class SaxoLoginClient {
 
 	@Autowired
 	private WebClientFactory webClientFactory;
-
-
-	private String fullAppRedirectUrl;
-
-
 	private WebClient wc;
 	private String authorizationHeader;
-
 
 
 	@PostConstruct
@@ -94,15 +85,14 @@ public class SaxoLoginClient {
 	 * 
 	 * @throws FoundException with redirect to Saxo login.
 	 */
-	public void authorize(UUID sessionId, String baseUrl) {
-		this.fullAppRedirectUrl = baseUrl + appRedirectUrl;
-		log.trace("Authorizing session {}. Saved fullAppRedirectUrl={}", sessionId, fullAppRedirectUrl);
+	public void authorize(UUID sessionId, String redirectUri) {
+		log.trace("Authorizing session {}. Using redirectUri={}", sessionId, redirectUri);
 		wc.get()
 		.uri(authzEndpoint, ub -> ub
 				.queryParam("response_type", "code")
 				.queryParam("client_id", appKey)
 				.queryParam("state", sessionId)
-				.queryParam("redirect_uri", fullAppRedirectUrl)
+				.queryParam("redirect_uri", redirectUri)
 				.build())
 		.retrieve()
 		.bodyToMono(String.class)
@@ -114,13 +104,13 @@ public class SaxoLoginClient {
 	 * Exchanges authorization code for access and refresh tokens.
 	 * Stores the tokens in SaxoSession. 
 	 */
-	public void getTokens(String code) {
+	public void getTokens(String code, String redirectUri) {
 		log.trace("Fetching tokens for code {}", code);
 		SaxoTokens saxoTokens = wc.post()
 				.uri(tokenEndpoint, ub -> ub
 						.queryParam("grant_type", "authorization_code")
 						.queryParam("code", code)
-						.queryParam("redirect_uri", fullAppRedirectUrl)
+						.queryParam("redirect_uri", redirectUri)
 						.build())
 				.header(AUTHORIZATION, authorizationHeader)
 				.header(CONTENT_LENGTH, "0")
@@ -129,7 +119,7 @@ public class SaxoLoginClient {
 				.block();
 		log.trace("Received tokens {}", saxoTokens);
 		if (saxoTokens == null) throw new IllegalStateException("Failed to get Saxo tokens (got empty response)");
-		saxoSessionHolder.registerSaxoTokens(saxoTokens);
+		saxoSessionHolder.registerSaxoTokens(saxoTokens, redirectUri);
 		SaxoUserDetails userDetails = saxoClient.me();
 		saxoSessionHolder.loggedIn(userDetails);
 	}
@@ -139,11 +129,15 @@ public class SaxoLoginClient {
 	 * Refreshes the tokens in SaxoSession. 
 	 */
 	public void refreshTokens() {
+		String redirectUri = saxoSessionHolder.getSession().getRedirectUri();
+		if (redirectUri == null || redirectUri.isBlank()) {
+			throw new IllegalStateException("Unable to refresh Saxo tokens: redirect URI is missing from session");
+		}
 		SaxoTokens saxoTokens = wc.post()
 				.uri(tokenEndpoint, ub -> ub
 						.queryParam("grant_type", "refresh_token")
 						.queryParam("refresh_token", saxoSessionHolder.getRefreshToken())
-						.queryParam("redirect_uri", fullAppRedirectUrl)
+						.queryParam("redirect_uri", redirectUri)
 						.build())
 				.header(AUTHORIZATION, authorizationHeader)
 				.header(CONTENT_LENGTH, "0")
@@ -151,7 +145,7 @@ public class SaxoLoginClient {
 				.bodyToMono(SaxoTokens.class)
 				.block();
 		if (saxoTokens== null) throw new IllegalStateException("Failed to refresh Saxo tokens (got empty response)");
-		saxoSessionHolder.registerSaxoTokens(saxoTokens);
+		saxoSessionHolder.registerSaxoTokens(saxoTokens, redirectUri);
 	}
 
 

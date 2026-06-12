@@ -23,6 +23,7 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import dk.clanie.web.exception.UnauthorizedException;
 import lombok.extern.slf4j.Slf4j;
 
 @Aspect
@@ -43,9 +44,23 @@ public class SaxoTokenRenewalAspect {
 
 	@Before("allSaxoClientMethods() && !@annotation(dk.clanie.saxo.SaxoSkipTokenRenewal)")
 	public void refreshTokenIfRequired() {
-		if (saxoSessionHolder.accessTokenHasExpired()) {
+		if (!saxoSessionHolder.accessTokenHasExpired()) {
+			return;
+		}
+		SaxoSession session = saxoSessionHolder.getSession();
+		synchronized (session) {
+			if (!saxoSessionHolder.accessTokenHasExpired()) {
+				return;
+			}
 			log.debug("Saxo access token has expired. Refreshing.");
-			saxoLoginClient.refreshTokens();
+			try {
+				saxoLoginClient.refreshTokens();
+			} catch (UnauthorizedException e) {
+				String userId = session.getUserDetails() != null ? session.getUserDetails().getUserId() : "unknown";
+				log.warn("Saxo token refresh failed with 401 for userId='{}'. Logging out Saxo session; re-authentication is required.", userId);
+				saxoSessionHolder.logOut();
+				throw e;
+			}
 		}
 	}
 

@@ -38,6 +38,7 @@ public class SaxoLoginController {
 
 	public static final String SAXO_LOGIN_SESSION_ID_ATTRIBUTE = "saxoLoginSessionId";
 	public static final String SAXO_LOGIN_REDIRECT_AFTER_ATTRIBUTE = "saxoLoginRedirectAfter";
+	public static final String SAXO_LOGIN_REDIRECT_URI_ATTRIBUTE = "saxoLoginRedirectUri";
 
 	private static final String SAXO_LOGIN = "/saxo/login";
 
@@ -67,8 +68,10 @@ public class SaxoLoginController {
 
 		String fullUrl = request.getRequestURL().toString();  // e.g., https://portfolio.clanie.dk/saxo/login
 		String baseUrl = fullUrl.substring(0, fullUrl.indexOf(SAXO_LOGIN));  // https://portfolio.clanie.dk
+		String redirectUri = baseUrl + "/saxo/login/code";
+		session.setAttribute(SAXO_LOGIN_REDIRECT_URI_ATTRIBUTE, redirectUri);
 
-		saxoLoginClient.authorize(sessionId, baseUrl);
+		saxoLoginClient.authorize(sessionId, redirectUri);
 	}
 
 
@@ -83,8 +86,11 @@ public class SaxoLoginController {
 			Model model) {
 		log.trace("Recived code {} for session {}.", code, sessionId);
 		if (!session.getAttribute(SAXO_LOGIN_SESSION_ID_ATTRIBUTE).equals(sessionId)) throw new InternalServerErrorException("Wrong " + SAXO_LOGIN_SESSION_ID_ATTRIBUTE);
-		saxoLoginClient.getTokens(code); // Initializes SaxoSession
+		String redirectUri = (String) session.getAttribute(SAXO_LOGIN_REDIRECT_URI_ATTRIBUTE);
+		if (redirectUri == null) throw new InternalServerErrorException("Missing " + SAXO_LOGIN_REDIRECT_URI_ATTRIBUTE);
+		saxoLoginClient.getTokens(code, redirectUri); // Initializes SaxoSession
 		session.removeAttribute(SAXO_LOGIN_SESSION_ID_ATTRIBUTE);
+		session.removeAttribute(SAXO_LOGIN_REDIRECT_URI_ATTRIBUTE);
 		String redirect = "redirect:" + session.getAttribute(SAXO_LOGIN_REDIRECT_AFTER_ATTRIBUTE);
 		session.removeAttribute(SAXO_LOGIN_REDIRECT_AFTER_ATTRIBUTE);
 		return redirect;

@@ -50,9 +50,9 @@ public class SaxoSessionHolder {
 	}
 
 
-	public void registerSaxoTokens(SaxoTokens tokens) {
+	public void registerSaxoTokens(SaxoTokens tokens, String redirectUri) {
 		SaxoSession saxoSession = threadLocalSession.get();
-		saxoSession.registerTokens(tokens);
+		saxoSession.registerTokens(tokens, redirectUri);
 	}
 
 
@@ -114,7 +114,9 @@ public class SaxoSessionHolder {
 		SaxoUserDetails userDetails = saxoSession.getUserDetails();
 		saxoSession.invalidate();
 		removeFromThread();
-		applicationEventPublisher.publishEvent(new SaxoLogoutEvent(userDetails));
+		if (userDetails != null) {
+			applicationEventPublisher.publishEvent(new SaxoLogoutEvent(userDetails));
+		}
 	}
 
 
