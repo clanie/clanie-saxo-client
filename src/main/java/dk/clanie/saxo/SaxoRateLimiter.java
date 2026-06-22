@@ -45,9 +45,10 @@ import lombok.extern.slf4j.Slf4j;
  * per-minute headers may be absent, so missing headers mean "plenty left" — not
  * a bug.
  *
- * <p>Per-minute dimensions are independent per service group: chart quota and
- * trade (price) quota are separate. We track the most constrained per-minute
- * dimension and ignore the large daily {@code AppDay} budget.
+ * <p>Per-minute ({@code *Minute}) and per-list-call ({@code *List}) dimensions
+ * are independent per service group: chart quota and trade (price) quota are
+ * separate. We track the most constrained short-window dimension and ignore the
+ * large daily {@code AppDay} budget.
  */
 @Service
 @Slf4j
@@ -70,6 +71,13 @@ public class SaxoRateLimiter {
 
     /** Dimensions already warned about, so the header-drift canary logs at most once each. */
     private final Set<String> warnedDimensions = ConcurrentHashMap.newKeySet();
+
+    /**
+     * {@code *List} dimensions whose reset window turned out to be long: warned
+     * once, then skipped from pacing to avoid multi-hour waits.
+     */
+    private static final int LIST_MAX_RESET_SECONDS = 300;
+    private static final Set<String> warnedLongListResets = ConcurrentHashMap.newKeySet();
 
 
     /**
@@ -100,37 +108,45 @@ public class SaxoRateLimiter {
     }
 
     private void updateState(String key, HttpHeaders headers) {
-        mostConstrainedPerMinute(headers).ifPresent(state -> {
+        mostConstrained(headers).ifPresent(state -> {
             states.put(key, state);
             log.debug("Saxo rate limit [{}]: {} remaining, resets {}.", key, state.remaining(), state.resetAt());
         });
         // Canary: if Saxo reports a rate-limit dimension we neither pace against
-        // (a per-minute "*Minute" dimension) nor knowingly ignore (a coarse
-        // day/hour budget like AppDay), our header-name assumptions have likely
+        // ("*Minute" and short-window "*List") nor knowingly ignore (coarse
+        // day/hour budgets like AppDay), our header-name assumptions have likely
         // drifted and the pacing for that group has silently stopped working.
         for (String dimension : unrecognizedRateLimitDimensions(headers)) {
             if (warnedDimensions.add(dimension)) {
-                log.warn("Unrecognized Saxo rate-limit dimension '{}' (service group '{}'). SaxoRateLimiter only paces against per-minute '*Minute' dimensions; if Saxo renamed its per-minute limit headers this class must be updated, otherwise chart rate limiting is no longer effective.", dimension, key);
+                log.warn("Unrecognized Saxo rate-limit dimension '{}' (service group '{}'). SaxoRateLimiter only paces against '*Minute' and short-window '*List' dimensions; if Saxo renamed its rate-limit headers this class must be updated, otherwise rate limiting for this dimension is no longer effective.", dimension, key);
             }
         }
     }
 
     /**
-     * Returns the most constrained per-minute rate-limit dimension present in
+     * Returns the most constrained short-window rate-limit dimension present in
      * {@code headers} (the one with the fewest requests remaining), or empty
-     * when Saxo omitted the per-minute headers because there is ample quota.
+     * when Saxo omitted those headers because there is ample quota.
      *
      * <p>Saxo names rate-limit headers per dimension, e.g.
-     * {@code X-RateLimit-ChartMinute-Remaining} / {@code -Reset}. We only
-     * consider the {@code *Minute} dimensions — the large daily
+     * {@code X-RateLimit-ChartMinute-Remaining} / {@code -Reset}. We consider
+     * both {@code *Minute} dimensions and {@code *List} dimensions (per-list-call
+     * limits such as {@code TradeInfoPricesList}). The large daily
      * {@code X-RateLimit-AppDay-*} budget is deliberately ignored, since its
      * multi-hour reset window must never drive a per-cycle pause.
+     *
+     * <p>As a guard, any {@code *List} dimension whose reset window exceeds
+     * {@value #LIST_MAX_RESET_SECONDS}s is treated as long-window and skipped —
+     * a one-time WARN is logged if that ever happens.
      */
-    static Optional<RateLimitState> mostConstrainedPerMinute(HttpHeaders headers) {
+    static Optional<RateLimitState> mostConstrained(HttpHeaders headers) {
         RateLimitState constraining = null;
         for (String name : headers.headerNames()) {
             String lower = name.toLowerCase();
-            if (!lower.startsWith("x-ratelimit-") || !lower.endsWith("minute-remaining")) continue;
+            if (!lower.startsWith("x-ratelimit-")) continue;
+            boolean isMinute = lower.endsWith("minute-remaining");
+            boolean isList = lower.endsWith("list-remaining");
+            if (!isMinute && !isList) continue;
             String dimension = name.substring("X-RateLimit-".length(), name.length() - "-Remaining".length());
             String remaining = headers.getFirst(name);
             String reset = headers.getFirst("X-RateLimit-" + dimension + "-Reset");
@@ -138,6 +154,16 @@ public class SaxoRateLimiter {
             try {
                 int remainingCount = Integer.parseInt(remaining.trim());
                 int resetSeconds = Integer.parseInt(reset.trim());
+                if (isList && resetSeconds > LIST_MAX_RESET_SECONDS) {
+                    if (warnedLongListResets.add(dimension)) {
+                        log.warn("Saxo rate-limit dimension '{}' is a *List dimension but has reset={}s > {}s. " +
+                                 "Assumption was that *List dimensions are short-window. " +
+                                 "SaxoRateLimiter will not pace against it to avoid unexpectedly long waits. " +
+                                 "Update the code if this is wrong.",
+                                 dimension, resetSeconds, LIST_MAX_RESET_SECONDS);
+                    }
+                    continue;
+                }
                 if (constraining == null || remainingCount < constraining.remaining()) {
                     constraining = new RateLimitState(remainingCount, Instant.now().plusSeconds(resetSeconds));
                 }
@@ -150,10 +176,11 @@ public class SaxoRateLimiter {
 
     /**
      * Returns the rate-limit dimensions Saxo reported that this class does not
-     * understand: neither a per-minute {@code *Minute} dimension (which we pace
-     * against) nor a coarse day/hour budget such as {@code AppDay} (which we
-     * deliberately ignore). A non-empty result is a red flag that Saxo's header
-     * naming has changed and the per-minute tracking has silently gone stale.
+     * understand: neither a short-window {@code *Minute} or {@code *List}
+     * dimension (which we pace against) nor a coarse day/hour budget such as
+     * {@code AppDay} (which we deliberately ignore). A non-empty result is a red
+     * flag that Saxo's header naming has changed and pacing has silently gone
+     * stale.
      */
     static Set<String> unrecognizedRateLimitDimensions(HttpHeaders headers) {
         Set<String> unrecognized = new HashSet<>();
@@ -162,7 +189,8 @@ public class SaxoRateLimiter {
             if (!lower.startsWith("x-ratelimit-") || !lower.endsWith("-remaining")) continue;
             String dimension = name.substring("X-RateLimit-".length(), name.length() - "-Remaining".length());
             String dimensionLower = dimension.toLowerCase();
-            if (dimensionLower.endsWith("minute") || dimensionLower.endsWith("hour") || dimensionLower.endsWith("day")) continue;
+            if (dimensionLower.endsWith("minute") || dimensionLower.endsWith("list")
+                    || dimensionLower.endsWith("hour") || dimensionLower.endsWith("day")) continue;
             unrecognized.add(dimension);
         }
         return unrecognized;

@@ -45,7 +45,7 @@ class SaxoRateLimiterTest {
 		headers.add("X-RateLimit-ChartMinute-Remaining", "7");
 		headers.add("X-RateLimit-ChartMinute-Reset", "41");
 
-		Optional<RateLimitState> state = SaxoRateLimiter.mostConstrainedPerMinute(headers);
+		Optional<RateLimitState> state = SaxoRateLimiter.mostConstrained(headers);
 
 		// The per-minute dimension wins, not AppDay's millions-remaining budget.
 		assertThat(state).isPresent();
@@ -60,13 +60,13 @@ class SaxoRateLimiterTest {
 		headers.add("X-RateLimit-AppDay-Remaining", "9998941");
 		headers.add("X-RateLimit-AppDay-Reset", "19243");
 
-		assertThat(SaxoRateLimiter.mostConstrainedPerMinute(headers)).isEmpty();
+		assertThat(SaxoRateLimiter.mostConstrained(headers)).isEmpty();
 	}
 
 
 	@Test
 	void returns_empty_when_there_are_no_rate_limit_headers() {
-		assertThat(SaxoRateLimiter.mostConstrainedPerMinute(new HttpHeaders())).isEmpty();
+		assertThat(SaxoRateLimiter.mostConstrained(new HttpHeaders())).isEmpty();
 	}
 
 
@@ -78,7 +78,7 @@ class SaxoRateLimiterTest {
 		headers.add("X-RateLimit-ChartMinute-Remaining", "3");
 		headers.add("X-RateLimit-ChartMinute-Reset", "12");
 
-		Optional<RateLimitState> state = SaxoRateLimiter.mostConstrainedPerMinute(headers);
+		Optional<RateLimitState> state = SaxoRateLimiter.mostConstrained(headers);
 
 		assertThat(state).isPresent();
 		assertThat(state.get().remaining()).isEqualTo(3);
@@ -86,7 +86,7 @@ class SaxoRateLimiterTest {
 
 
 	@Test
-	void does_not_flag_the_known_minute_and_day_dimensions() {
+	void does_not_flag_the_known_minute_day_and_list_dimensions() {
 		HttpHeaders headers = new HttpHeaders();
 		headers.add("X-RateLimit-AppDay-Remaining", "9998941");
 		headers.add("X-RateLimit-AppDay-Reset", "19243");
@@ -94,8 +94,38 @@ class SaxoRateLimiterTest {
 		headers.add("X-RateLimit-TradeInfoPricesMinute-Reset", "53");
 		headers.add("X-RateLimit-ChartMinute-Remaining", "7");
 		headers.add("X-RateLimit-ChartMinute-Reset", "41");
+		headers.add("X-RateLimit-TradeInfoPricesList-Remaining", "3");
+		headers.add("X-RateLimit-TradeInfoPricesList-Reset", "45");
 
 		assertThat(SaxoRateLimiter.unrecognizedRateLimitDimensions(headers)).isEmpty();
+	}
+
+
+	@Test
+	void parses_the_list_dimension_and_paces_against_it() {
+		// TradeInfoPricesList is a per-list-call limit Saxo returns for
+		// trade/v1/infoprices/list/; it uses the same Remaining/Reset structure as *Minute dims.
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("X-RateLimit-TradeInfoPricesList-Limit", "50");
+		headers.add("X-RateLimit-TradeInfoPricesList-Remaining", "3");
+		headers.add("X-RateLimit-TradeInfoPricesList-Reset", "45");
+
+		Optional<RateLimitState> state = SaxoRateLimiter.mostConstrained(headers);
+
+		assertThat(state).isPresent();
+		assertThat(state.get().remaining()).isEqualTo(3);
+	}
+
+
+	@Test
+	void excludes_a_list_dimension_with_an_unexpectedly_long_reset_from_pacing() {
+		// Guard: a *List dimension that turns out to have a multi-hour reset must
+		// not drive waitIfNeeded to sleep for hours, just like AppDay is excluded.
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("X-RateLimit-TradeInfoPricesList-Remaining", "3");
+		headers.add("X-RateLimit-TradeInfoPricesList-Reset", "86400"); // 1 day
+
+		assertThat(SaxoRateLimiter.mostConstrained(headers)).isEmpty();
 	}
 
 
