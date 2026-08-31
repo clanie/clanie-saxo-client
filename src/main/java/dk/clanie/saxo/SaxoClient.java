@@ -61,6 +61,14 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class SaxoClient {
 
+	/**
+	 * The two formats the historical-report endpoints render. They pick between them by
+	 * the request's Accept header - there is no query parameter and no default worth
+	 * relying on, so every report call has to name one.
+	 */
+	private static final String XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+	private static final String PDF_MEDIA_TYPE = "application/pdf";
+
 	private final SaxoSessionHolder saxoSessionHolder;
 	private final SaxoXlsxUtils saxoXlsxUtils;
 	private final WebClientFactory webClientFactory;
@@ -181,7 +189,7 @@ public class SaxoClient {
 						.queryParam("FromDate", opt(startDate).map(LocalDate::toString).orElse("2000-01-01"))
 						.queryParam("ToDate", LocalDate.now())
 						.build(clientKey))
-				.header(HttpHeaders.ACCEPT, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+				.header(HttpHeaders.ACCEPT, XLSX_MEDIA_TYPE)
 				.retrieve()
 				.bodyToMono(byte[].class)
 				.block();
@@ -205,14 +213,39 @@ public class SaxoClient {
 		return new SaxoTradesExecutedResponse("TradesExecuted.xlsx", xlsxData, saxoXlsxUtils.parseTradesExecuted(xlsxData), saxoXlsxUtils.parseBookedTradeAmounts(xlsxData));
 	}
 
+	/**
+	 * The TradesExecuted report as a PDF instead of a spreadsheet - the only other format
+	 * the endpoint offers.
+	 * <p>
+	 * A diagnostic, not an import path: nothing parses the PDF. It exists to answer one
+	 * question about the 403 this endpoint has been returning for a single client since
+	 * 2026-08-27 - whether the fault is in Saxo's Excel rendering of the report or in the
+	 * report itself. Run it from the Saxo API admin view alongside the spreadsheet button,
+	 * in the same session and so against the same client key, or the two results cannot be
+	 * compared.
+	 */
+	@SaxoRetryIfThrottled
+	public byte[] tradesExecutedPdf(String clientKey, String accountKey, @Nullable LocalDate startDate) {
+		return fetchTradesExecuted(clientKey, accountKey, startDate, PDF_MEDIA_TYPE);
+	}
+
 	private byte[] fetchTradesExecutedXlsx(String clientKey, String accountKey, @Nullable LocalDate startDate) {
+		return fetchTradesExecuted(clientKey, accountKey, startDate, XLSX_MEDIA_TYPE);
+	}
+
+	/**
+	 * The TradesExecuted report in the format asked for by {@code acceptMediaType}. The
+	 * endpoint returns whichever of its two formats the Accept header names, so the header
+	 * is the only difference between the callers.
+	 */
+	private byte[] fetchTradesExecuted(String clientKey, String accountKey, @Nullable LocalDate startDate, String acceptMediaType) {
 		return wc.get()
 				.uri("/cr/v1/reports/TradesExecuted/{ClientKey}", ub -> ub
 						.queryParam("AccountKey", accountKey)
 						.queryParam("FromDate", opt(startDate).map(LocalDate::toString).orElse("2000-01-01"))
 						.queryParam("ToDate", LocalDate.now())
 						.build(clientKey))
-				.header(HttpHeaders.ACCEPT, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+				.header(HttpHeaders.ACCEPT, acceptMediaType)
 				.retrieve()
 				.bodyToMono(byte[].class)
 				.block();
