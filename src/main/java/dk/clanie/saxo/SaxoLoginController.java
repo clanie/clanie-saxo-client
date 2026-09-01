@@ -84,7 +84,8 @@ public class SaxoLoginController {
 			@RequestParam("state") UUID sessionId,
 			HttpSession session,
 			Model model) {
-		log.trace("Recived code {} for session {}.", code, sessionId);
+		// The code itself stays out of the log; it is an exchangeable credential.
+		log.trace("Received authorization code for session {}.", sessionId);
 		if (!session.getAttribute(SAXO_LOGIN_SESSION_ID_ATTRIBUTE).equals(sessionId)) throw new InternalServerErrorException("Wrong " + SAXO_LOGIN_SESSION_ID_ATTRIBUTE);
 		String redirectUri = (String) session.getAttribute(SAXO_LOGIN_REDIRECT_URI_ATTRIBUTE);
 		if (redirectUri == null) throw new InternalServerErrorException("Missing " + SAXO_LOGIN_REDIRECT_URI_ATTRIBUTE);

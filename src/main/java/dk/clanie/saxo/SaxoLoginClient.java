@@ -105,7 +105,9 @@ public class SaxoLoginClient {
 	 * Stores the tokens in SaxoSession. 
 	 */
 	public void getTokens(String code, String redirectUri) {
-		log.trace("Fetching tokens for code {}", code);
+		// The authorization code is a one-time credential for these very tokens, so it is
+		// counted, not printed - see TokenRedaction.
+		log.trace("Fetching tokens for authorization code of {} chars", code.length());
 		SaxoTokens saxoTokens = wc.post()
 				.uri(tokenEndpoint, ub -> ub
 						.queryParam("grant_type", "authorization_code")

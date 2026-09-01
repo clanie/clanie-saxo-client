@@ -27,13 +27,23 @@ import dk.clanie.saxo.dto.SaxoUserDetails;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Setter;
+import lombok.ToString;
 
+/**
+ * A logged-in Saxo session: the live tokens, and who they belong to.
+ *
+ * The tokens are credentials, so they are kept out of {@link #toString()} and shown
+ * redacted instead - see {@link dk.clanie.saxo.dto.SaxoTokens}, where the same rule and
+ * the reason for it are spelled out.
+ */
 @Data
 @Setter(AccessLevel.PACKAGE)
 public class SaxoSession {
 
+	@ToString.Exclude
 	private volatile String accessToken;
 	private volatile Instant accessTokenExpiryTime;
+	@ToString.Exclude
 	private volatile String refreshToken;
 	private volatile Instant refreshTokenExpiryTime;
 	private volatile @Nullable String redirectUri;
@@ -63,6 +73,18 @@ public class SaxoSession {
 		refreshToken = saxoTokens.getRefreshToken();
 		refreshTokenExpiryTime = Instant.now().plusSeconds(saxoTokens.getRefreshTokenExpiresIn());
 		this.redirectUri = redirectUri;
+	}
+
+
+	@ToString.Include(name = "accessToken")
+	private String redactedAccessToken() {
+		return TokenRedaction.redact(accessToken);
+	}
+
+
+	@ToString.Include(name = "refreshToken")
+	private String redactedRefreshToken() {
+		return TokenRedaction.redact(refreshToken);
 	}
 
 

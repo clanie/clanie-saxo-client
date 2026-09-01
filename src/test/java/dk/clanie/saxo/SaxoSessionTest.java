@@ -60,4 +60,27 @@ class SaxoSessionTest {
 	}
 
 
+	/**
+	 * The session holds the same credentials the tokens DTO does, so it has to keep them
+	 * out of its toString for the same reason - see SaxoTokensTest.
+	 */
+	@Test
+	void toStringDoesNotContainTheTokens() {
+		SaxoSession session = new SaxoSession();
+		SaxoTokens tokens = new SaxoTokens();
+		tokens.setAccessToken("access-token");
+		tokens.setRefreshToken("refresh-token");
+		tokens.setExpiresIn(1200);
+		tokens.setRefreshTokenExpiresIn(2400);
+		session.registerTokens(tokens, "https://portfolio.clanie.dk/saxo/login/code");
+
+		String rendered = session.toString();
+
+		assertThat(rendered).doesNotContain("access-token");
+		assertThat(rendered).doesNotContain("refresh-token");
+		assertThat(rendered).contains("accessToken=<redacted, 12 chars>");
+		assertThat(rendered).contains("refreshToken=<redacted, 13 chars>");
+	}
+
+
 }

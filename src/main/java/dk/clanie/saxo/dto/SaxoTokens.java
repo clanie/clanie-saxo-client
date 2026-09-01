@@ -19,12 +19,23 @@ package dk.clanie.saxo.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import dk.clanie.saxo.TokenRedaction;
 import lombok.Data;
+import lombok.ToString;
 
+/**
+ * The tokens Saxo hands back in exchange for an authorization code.
+ *
+ * Two of these fields are live credentials, and this object used to be logged whole.
+ * They are kept out of {@link #toString()} and shown redacted instead, so the class
+ * cannot leak them however it is logged. <b>Any secret added here must be excluded the
+ * same way</b> - Lombok includes new fields in {@code toString()} automatically.
+ */
 @Data
 public class SaxoTokens {
 	
 
+	@ToString.Exclude
 	@JsonProperty("access_token")
 	private String accessToken;
 
@@ -34,6 +45,7 @@ public class SaxoTokens {
 	@JsonProperty("expires_in")
 	private int expiresIn;
 	
+	@ToString.Exclude
 	@JsonProperty("refresh_token")
 	private String refreshToken;
 	
@@ -42,6 +54,18 @@ public class SaxoTokens {
 	
 	@JsonProperty("base_uri")
 	private String baseUrl;
+
+
+	@ToString.Include(name = "accessToken")
+	private String redactedAccessToken() {
+		return TokenRedaction.redact(accessToken);
+	}
+
+
+	@ToString.Include(name = "refreshToken")
+	private String redactedRefreshToken() {
+		return TokenRedaction.redact(refreshToken);
+	}
 
 
 }

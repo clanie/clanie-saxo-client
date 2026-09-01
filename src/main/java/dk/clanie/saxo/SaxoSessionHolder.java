@@ -81,7 +81,7 @@ public class SaxoSessionHolder {
 	}
 
 
-	public Object getRefreshToken() {
+	public String getRefreshToken() {
 		return threadLocalSession.get().getRefreshToken();
 	}
 
