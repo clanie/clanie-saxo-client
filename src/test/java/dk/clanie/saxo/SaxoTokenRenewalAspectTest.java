@@ -84,6 +84,23 @@ class SaxoTokenRenewalAspectTest {
 	}
 
 
+	@Test
+	void failsAsUnauthorizedWithoutRefreshingWhenNotLoggedIn() {
+		SaxoSession session = new SaxoSession();
+		AtomicInteger refreshCalls = new AtomicInteger();
+		TestSaxoSessionHolder sessionHolder = new TestSaxoSessionHolder(session, new AtomicBoolean(true));
+		TestSaxoLoginClient loginClient = new TestSaxoLoginClient(refreshCalls::incrementAndGet);
+		SaxoTokenRenewalAspect aspect = aspect(sessionHolder, loginClient);
+
+		assertThatThrownBy(() -> aspect.refreshTokenIfRequired())
+				.isInstanceOf(UnauthorizedException.class)
+				.hasMessageContaining("Not logged in to Saxo");
+
+		assertThat(refreshCalls.get()).isZero();
+		assertThat(sessionHolder.logOutCalls.get()).isZero();
+	}
+
+
 	private static SaxoTokenRenewalAspect aspect(SaxoSessionHolder sessionHolder, SaxoLoginClient loginClient) {
 		SaxoTokenRenewalAspect aspect = new SaxoTokenRenewalAspect();
 		ReflectionTestUtils.setField(aspect, "saxoSessionHolder", sessionHolder);
@@ -112,6 +129,7 @@ class SaxoTokenRenewalAspectTest {
 		SaxoUserDetails userDetails = new SaxoUserDetails();
 		userDetails.setUserId(userId);
 		session.setUserDetails(userDetails);
+		session.setRefreshToken("refresh-token");
 		return session;
 	}
 
