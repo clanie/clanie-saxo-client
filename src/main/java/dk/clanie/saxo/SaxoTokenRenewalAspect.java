@@ -52,6 +52,13 @@ public class SaxoTokenRenewalAspect {
 			if (!saxoSessionHolder.accessTokenHasExpired()) {
 				return;
 			}
+			// No refresh token means this session never logged in to Saxo (or has logged
+			// out): there is nothing to refresh. Refreshing anyway fails on the redirect URI,
+			// which is only recorded at login, and reads as if a login had lost it (#272 in
+			// clanie-portfolio). Say what it is instead - the caller must log in to Saxo.
+			if (session.getRefreshToken() == null) {
+				throw new UnauthorizedException("Not logged in to Saxo");
+			}
 			log.debug("Saxo access token has expired. Refreshing.");
 			try {
 				saxoLoginClient.refreshTokens();
